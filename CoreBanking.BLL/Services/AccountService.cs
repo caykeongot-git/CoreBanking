@@ -105,21 +105,21 @@ namespace CoreBanking.BLL.Services
         {
             // 1. Validate
             if (request.FromAccountId == request.ToAccountId)
-                throw new Exception("Cannot transfer to self");
+                throw new Exception("Cannot transfer to self"); // Kiểm tra không được chuyển cho chính mình
 
             var fromAcc = await _unitOfWork.Accounts.GetByIdAsync(request.FromAccountId);
             var toAcc = await _unitOfWork.Accounts.GetByIdAsync(request.ToAccountId);
 
-            if (fromAcc == null || toAcc == null) throw new Exception("Invalid account(s)");
-            if (fromAcc.Balance < request.Amount) throw new Exception("Insufficient balance");
+            if (fromAcc == null || toAcc == null) throw new Exception("Invalid account(s)"); // Có tồn tại hay không?
+            if (fromAcc.Balance < request.Amount) throw new Exception("Insufficient balance"); // Có đủ tiền hay không?
 
             // 2. Trừ tiền người gửi
             fromAcc.Balance -= request.Amount;
-            _unitOfWork.Accounts.Update(fromAcc);
+            _unitOfWork.Accounts.Update(fromAcc); // Đánh dấu là "thằng này bị sửa tiền rồi nhé"
 
             // 3. Cộng tiền người nhận
             toAcc.Balance += request.Amount;
-            _unitOfWork.Accounts.Update(toAcc);
+            _unitOfWork.Accounts.Update(toAcc); // Tương tự như trên
 
             // 4. Ghi log Transaction (2 bản ghi)
             var now = DateTime.UtcNow;

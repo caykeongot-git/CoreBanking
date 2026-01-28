@@ -1,15 +1,23 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <ItemGroup>
-    <ProjectReference Include="..\CoreBanking.BLL\CoreBanking.BLL.csproj" />
-  </ItemGroup>
+	<PropertyGroup>
+		<OutputType>WinExe</OutputType>
+		<!-- QUAN TRỌNG: Phải là net9.0-windows để khớp với DAL và BLL -->
+		<TargetFramework>net9.0-windows</TargetFramework>
+		<Nullable>enable</Nullable>
+		<UseWindowsForms>true</UseWindowsForms>
+		<ImplicitUsings>enable</ImplicitUsings>
+	</PropertyGroup>
 
-  <PropertyGroup>
-    <OutputType>WinExe</OutputType>
-    <TargetFramework>net9.0-windows</TargetFramework>
-    <Nullable>enable</Nullable>
-    <UseWindowsForms>true</UseWindowsForms>
-    <ImplicitUsings>enable</ImplicitUsings>
-  </PropertyGroup>
+	<ItemGroup>
+		<ProjectReference Include="..\CoreBanking.BLL\CoreBanking.BLL.csproj" />
+		<ProjectReference Include="..\CoreBanking.DAL\CoreBanking.DAL.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<!-- Sử dụng phiên bản thư viện tương thích với .NET 9 -->
+		<PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.0" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.0" />
+	</ItemGroup>
 
 </Project>

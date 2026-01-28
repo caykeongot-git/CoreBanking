@@ -1,26 +1,26 @@
 ﻿using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
+using System.Security.Principal;
 
 namespace CoreBanking.DAL.Entities
 {
-    public class Account : BaseEntity
+    public class Customer : BaseEntity
     {
         [Required]
+        [MaxLength(100)]
+        public string FullName { get; set; } = string.Empty;
+
+        [Required]
         [MaxLength(20)]
-        public string AccountNumber { get; set; } = string.Empty;
+        public string IdentityNumber { get; set; } = string.Empty; // CCCD/CMND
 
-        [Column(TypeName = "decimal(18, 2)")]
-        public decimal Balance { get; set; }
+        [EmailAddress]
+        public string? Email { get; set; }
+        public string? PhoneNumber { get; set; }
 
-        public int CustomerId { get; set; }
-        public virtual Customer? Customer { get; set; }
+        public bool IsKycVerified { get; set; } = false;
 
-        // Navigation
-        public virtual ICollection<Transaction> Transactions { get; set; } = new List<Transaction>();
-
-        // OPTIMISTIC CONCURRENCY CONTROL
-        // EF Core sẽ dùng field này để detect conflict khi update Balance
-        [Timestamp]
-        public byte[] RowVersion { get; set; } = Array.Empty<byte>();
+        public virtual ICollection<Account> Accounts { get; set; } = new List<Account>();
+        public virtual ICollection<Loan> Loans { get; set; } = new List<Loan>();
+        public virtual CreditScore? CreditScore { get; set; }
     }
 }

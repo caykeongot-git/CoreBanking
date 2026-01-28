@@ -31,6 +31,9 @@ builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<ICustomerService, CustomerService>();
 builder.Services.AddScoped<IAccountService, AccountService>();
 
+builder.Services.AddScoped<ICreditScoreService, CreditScoreService>();
+builder.Services.AddScoped<ILoanService, LoanService>();
+builder.Services.AddScoped<ITransactionService, TransactionService>();
 // ==================================================================
 
 var app = builder.Build();
