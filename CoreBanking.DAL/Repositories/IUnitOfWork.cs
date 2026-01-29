@@ -9,6 +9,7 @@ namespace CoreBanking.DAL.Repositories
         IRepository<Transaction> Transactions { get; }
         IRepository<Loan> Loans { get; }
         IRepository<CreditScore> CreditScores { get; }
+        IRepository<User> Users { get; }
 
         Task<int> CompleteAsync();
     }

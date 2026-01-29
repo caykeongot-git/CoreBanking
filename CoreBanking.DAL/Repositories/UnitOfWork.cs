@@ -15,6 +15,7 @@ namespace CoreBanking.DAL.Repositories
             Transactions = new Repository<Transaction>(_context);
             Loans = new Repository<Loan>(_context);
             CreditScores = new Repository<CreditScore>(_context);
+            Users = new Repository<User>(_context);
         }
 
         public IRepository<Customer> Customers { get; private set; }
@@ -22,7 +23,7 @@ namespace CoreBanking.DAL.Repositories
         public IRepository<Transaction> Transactions { get; private set; }
         public IRepository<Loan> Loans { get; private set; }
         public IRepository<CreditScore> CreditScores { get; private set; }
-
+        public IRepository<User> Users { get; private set; }
         public async Task<int> CompleteAsync()
         {
             return await _context.SaveChangesAsync();
