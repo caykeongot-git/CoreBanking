@@ -4,9 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace CoreBanking.WinUI
+namespace CoreBanking.WinUI.Controls
 {
-    internal class MainForm
+    internal class StatCard
     {
     }
 }

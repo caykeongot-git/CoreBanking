@@ -8,7 +8,7 @@ using System;
 using System.Windows.Forms;
 
 // QUAN TRỌNG: Dùng namespace UI thay vì Forms
-using CoreBanking.WinUI.UI;
+//using CoreBanking.WinUI.UI;
 
 namespace CoreBanking.WinUI
 {
@@ -19,15 +19,15 @@ namespace CoreBanking.WinUI
         [STAThread]
         static void Main()
         {
-            ApplicationConfiguration.Initialize();
+            //ApplicationConfiguration.Initialize();
 
             var services = new ServiceCollection();
             ConfigureServices(services);
             ServiceProvider = services.BuildServiceProvider();
 
             // Chạy Form Login
-            var loginForm = ServiceProvider.GetRequiredService<LoginForm>();
-            Application.Run(loginForm);
+            //var loginForm = ServiceProvider.GetRequiredService<LoginForm>();
+            //Application.Run(loginForm);
         }
 
         private static void ConfigureServices(IServiceCollection services)
@@ -43,9 +43,9 @@ namespace CoreBanking.WinUI
             services.AddScoped<ITransactionService, TransactionService>();
 
             // Đăng ký các Form với Namespace mới
-            services.AddTransient<LoginForm>();
+            //services.AddTransient<LoginForm>();
             services.AddTransient<MainForm>();
-            services.AddTransient<LoanDashboard>();
+            //services.AddTransient<LoanDashboard>();
         }
     }
 }
