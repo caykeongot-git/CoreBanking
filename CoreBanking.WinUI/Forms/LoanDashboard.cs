@@ -1,208 +1,230 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using CoreBanking.BLL.Interfaces;
 using CoreBanking.DAL.Repositories;
-using CoreBanking.WinUI.Controls; // Sử dụng StatCard và RoundedPanel từ namespace này
+using CoreBanking.WinUI.Controls;
 using CoreBanking.WinUI.Helpers;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace CoreBanking.WinUI.UI
 {
     public partial class LoanDashboard : Form
     {
         private readonly IUnitOfWork _unitOfWork;
-        // Nếu muốn dùng Service layer thay vì UnitOfWork trực tiếp thì inject ILoanService
-        // private readonly ILoanService _loanService;
 
-        // UI Components
-        private FlowLayoutPanel pnlStatsContainer;
-        private Panel pnlGridContainer;
+        // UI Layout Containers
+        private Panel pnlContainer;
+        private FlowLayoutPanel pnlTopStats;
+        private TableLayoutPanel tblMainContent;
+
+        // Chart & Grid
+        private ModernLiveChart chartRevenue;
         private DataGridView dgvLoans;
-        private Label lblHeader;
-        private Button btnRefresh;
-        private Button btnNewLoan;
 
-        // Constructor cho Designer (tránh lỗi Visual Studio)
-        public LoanDashboard()
-        {
-            InitializeComponent();
-        }
+        // Data & Timer
+        private System.Windows.Forms.Timer timerUpdate;
+        private Random _rnd = new Random();
 
-        // Constructor chính với DI
+        public LoanDashboard() { InitializeComponent(); }
+
         public LoanDashboard(IUnitOfWork unitOfWork) : this()
         {
             _unitOfWork = unitOfWork;
-            // Load dữ liệu khi form hiện lên
-            this.Load += async (s, e) => await LoadDashboardData();
+            this.Load += async (s, e) => await LoadDataAsync();
+
+            // Timer giả lập real-time chart
+            timerUpdate = new System.Windows.Forms.Timer { Interval = 1000 };
+            timerUpdate.Tick += (s, e) => chartRevenue.PushValue(_rnd.Next(50, 200));
+            timerUpdate.Start();
         }
 
         private void InitializeComponent()
         {
-            // 1. Form Settings
             this.FormBorderStyle = FormBorderStyle.None;
             this.Dock = DockStyle.Fill;
-            this.BackColor = ThemeHelper.SecondaryColor; // Màu nền xám nhạt
-            this.Padding = new Padding(20);
+            this.BackColor = Color.FromArgb(240, 242, 245); // Nền xám nhạt chuẩn HMS
+            this.AutoScroll = true; // Cho phép cuộn nếu màn hình bé
 
-            // 2. Header Area (Tiêu đề + Nút tác vụ)
-            Panel pnlHeaderArea = new Panel();
-            pnlHeaderArea.Dock = DockStyle.Top;
-            pnlHeaderArea.Height = 60;
-            pnlHeaderArea.Padding = new Padding(0, 0, 0, 10); // Spacing bottom
+            // 1. Container chính (để tránh bị che bởi menu)
+            pnlContainer = new Panel();
+            pnlContainer.Dock = DockStyle.Top; // Dock Top để AutoScroll hoạt động đúng
+            pnlContainer.AutoSize = true;
+            pnlContainer.Padding = new Padding(20);
+            this.Controls.Add(pnlContainer);
 
-            lblHeader = new Label();
-            lblHeader.Text = "Tổng Quan Khoản Vay";
-            lblHeader.Font = new Font("Segoe UI", 18, FontStyle.Bold);
-            lblHeader.ForeColor = ThemeHelper.TextDark;
-            lblHeader.AutoSize = true;
-            lblHeader.Location = new Point(0, 10);
-            pnlHeaderArea.Controls.Add(lblHeader);
+            // 2. Tiêu đề Dashboard
+            Label lblTitle = new Label();
+            lblTitle.Text = "TỔNG QUAN TÍN DỤNG";
+            lblTitle.Font = new Font("Segoe UI", 16, FontStyle.Bold);
+            lblTitle.ForeColor = ThemeHelper.PrimaryColor;
+            lblTitle.Dock = DockStyle.Top;
+            lblTitle.Height = 40;
+            pnlContainer.Controls.Add(lblTitle);
 
-            // Nút Refresh
-            btnRefresh = CreateActionButton("Làm mới", Color.Gray);
-            btnRefresh.Location = new Point(pnlHeaderArea.Width - 250, 10); // Tạm tính, sẽ neo phải
-            btnRefresh.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            btnRefresh.Click += async (s, e) => await LoadDashboardData();
-            pnlHeaderArea.Controls.Add(btnRefresh);
+            // 3. Hàng Thống kê (Stat Cards)
+            pnlTopStats = new FlowLayoutPanel();
+            pnlTopStats.Dock = DockStyle.Top;
+            pnlTopStats.Height = 130;
+            pnlTopStats.FlowDirection = FlowDirection.LeftToRight;
+            pnlTopStats.WrapContents = false;
+            pnlTopStats.AutoSize = true;
+            pnlContainer.Controls.Add(pnlTopStats);
 
-            // Nút Thêm mới
-            btnNewLoan = CreateActionButton("Đăng ký Vay", ThemeHelper.AccentColor);
-            btnNewLoan.Location = new Point(pnlHeaderArea.Width - 120, 10);
-            btnNewLoan.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            btnNewLoan.Click += (s, e) => MessageBox.Show("Tính năng đang phát triển!");
-            pnlHeaderArea.Controls.Add(btnNewLoan);
+            // 4. Nội dung chính (Chia cột: Chart bên trái, Grid bên phải)
+            tblMainContent = new TableLayoutPanel();
+            tblMainContent.Dock = DockStyle.Top;
+            tblMainContent.Height = 500;
+            tblMainContent.ColumnCount = 2;
+            tblMainContent.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 60F)); // Chart chiếm 60%
+            tblMainContent.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 40F)); // Grid chiếm 40%
+            tblMainContent.Padding = new Padding(0, 20, 0, 0); // Cách stat card 20px
+            pnlContainer.Controls.Add(tblMainContent);
 
-            this.Controls.Add(pnlHeaderArea);
+            // --- CHART SECTION (Trái) ---
+            Panel pnlChartWrapper = new RoundedPanel();
+            pnlChartWrapper.Dock = DockStyle.Fill;
+            pnlChartWrapper.BackColor = Color.White;
+            pnlChartWrapper.Padding = new Padding(15);
+            pnlChartWrapper.Margin = new Padding(0, 0, 10, 0); // Margin phải
 
-            // 3. Stats Area (Các thẻ thống kê)
-            pnlStatsContainer = new FlowLayoutPanel();
-            pnlStatsContainer.Dock = DockStyle.Top;
-            pnlStatsContainer.Height = 160; // Chiều cao đủ cho thẻ
-            pnlStatsContainer.FlowDirection = FlowDirection.LeftToRight;
-            pnlStatsContainer.WrapContents = false; // Không xuống dòng nếu không cần thiết
-            pnlStatsContainer.AutoScroll = true; // Cho phép scroll ngang nếu màn hình bé
-            pnlStatsContainer.Padding = new Padding(0, 10, 0, 20); // Spacing
-            
-            // Add Sample Cards (Sẽ update số liệu thật sau)
-            pnlStatsContainer.Controls.Add(new StatCard("Tổng Dư Nợ", "0 VND", Color.FromArgb(0, 123, 255)));
-            pnlStatsContainer.Controls.Add(new StatCard("Hồ Sơ Chờ", "0", Color.FromArgb(255, 193, 7)));
-            pnlStatsContainer.Controls.Add(new StatCard("Khách Hàng", "0", Color.FromArgb(40, 167, 69)));
-            pnlStatsContainer.Controls.Add(new StatCard("Nợ Quá Hạn", "0", Color.FromArgb(220, 53, 69)));
+            Label lblChart = new Label { Text = "Biểu đồ giải ngân (Real-time)", Font = new Font("Segoe UI", 12, FontStyle.Bold), Dock = DockStyle.Top, Height = 30, ForeColor = Color.Gray };
+            chartRevenue = new ModernLiveChart { Dock = DockStyle.Fill };
 
-            this.Controls.Add(pnlStatsContainer);
+            pnlChartWrapper.Controls.Add(chartRevenue);
+            pnlChartWrapper.Controls.Add(lblChart);
+            tblMainContent.Controls.Add(pnlChartWrapper, 0, 0);
 
-            // 4. Grid Area (Danh sách chi tiết)
-            pnlGridContainer = new Panel();
-            pnlGridContainer.Dock = DockStyle.Fill;
-            pnlGridContainer.Padding = new Padding(0, 20, 0, 0); // Cách stat card ra
+            // --- GRID SECTION (Phải) ---
+            Panel pnlGridWrapper = new RoundedPanel();
+            pnlGridWrapper.Dock = DockStyle.Fill;
+            pnlGridWrapper.BackColor = Color.White;
+            pnlGridWrapper.Padding = new Padding(15);
+            pnlGridWrapper.Margin = new Padding(10, 0, 0, 0); // Margin trái
 
-            // Label tiêu đề bảng
-            Label lblGridTitle = new Label();
-            lblGridTitle.Text = "Danh Sách Khoản Vay Gần Đây";
-            lblGridTitle.Font = new Font("Segoe UI", 12, FontStyle.Bold);
-            lblGridTitle.ForeColor = Color.Gray;
-            lblGridTitle.Dock = DockStyle.Top;
-            lblGridTitle.Height = 30;
-            pnlGridContainer.Controls.Add(lblGridTitle);
-
-            // DataGridView
+            Label lblGrid = new Label { Text = "Hồ sơ mới nhất", Font = new Font("Segoe UI", 12, FontStyle.Bold), Dock = DockStyle.Top, Height = 30, ForeColor = Color.Gray };
             dgvLoans = new DataGridView();
             dgvLoans.Dock = DockStyle.Fill;
-            GridHelper.StyleGrid(dgvLoans); // Áp dụng Style chuẩn HMS
-            
-            // Thêm cột thủ công (nếu không auto-generate)
-            dgvLoans.Columns.Add("Id", "Mã HS");
-            dgvLoans.Columns.Add("Customer", "Khách Hàng");
-            dgvLoans.Columns.Add("Amount", "Số Tiền");
-            dgvLoans.Columns.Add("Rate", "Lãi Suất");
-            dgvLoans.Columns.Add("Term", "Kỳ Hạn");
-            dgvLoans.Columns.Add("Status", "Trạng Thái");
-            
-            // Custom format column
-            dgvLoans.Columns["Amount"].DefaultCellStyle.Format = "N0";
-            dgvLoans.Columns["Amount"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+            GridHelper.StyleGrid(dgvLoans); // Style chuẩn HMS
 
-            pnlGridContainer.Controls.Add(dgvLoans);
-            this.Controls.Add(pnlGridContainer);
-
-            // Z-Order
-            pnlHeaderArea.SendToBack(); // Top
-            pnlStatsContainer.SendToBack(); // Top (sau header)
-            pnlGridContainer.BringToFront(); // Fill
+            pnlGridWrapper.Controls.Add(dgvLoans);
+            pnlGridWrapper.Controls.Add(lblGrid);
+            tblMainContent.Controls.Add(pnlGridWrapper, 1, 0);
         }
 
-        private Button CreateActionButton(string text, Color color)
+        private async Task LoadDataAsync()
         {
-            Button btn = new Button();
-            btn.Text = text;
-            btn.BackColor = color;
-            btn.ForeColor = Color.White;
-            btn.FlatStyle = FlatStyle.Flat;
-            btn.FlatAppearance.BorderSize = 0;
-            btn.Font = new Font("Segoe UI", 10, FontStyle.Bold);
-            btn.Size = new Size(110, 35);
-            btn.Cursor = Cursors.Hand;
-            return btn;
-        }
+            if (_unitOfWork == null) return;
 
-        private async Task LoadDashboardData()
-        {
-            if (_unitOfWork == null) return; // Design mode safety
+            var loans = await _unitOfWork.Loans.GetAllAsync();
+            var customers = await _unitOfWork.Customers.GetAllAsync();
 
-            try
+            // 1. Fill Stat Cards
+            pnlTopStats.Controls.Clear();
+            AddStatCard("TỔNG DƯ NỢ", $"{loans.Sum(x => x.PrincipalAmount):N0} $", Color.FromArgb(0, 123, 255));
+            AddStatCard("LÃI SUẤT TB", "12.5 %", Color.FromArgb(255, 193, 7));
+            AddStatCard("KHÁCH HÀNG", $"{customers.Count()}", Color.FromArgb(40, 167, 69));
+            AddStatCard("HỒ SƠ CHỜ", $"{loans.Count(l => l.Status == DAL.Entities.LoanStatus.Pending)}", Color.FromArgb(220, 53, 69));
+
+            // 2. Fill Grid
+            dgvLoans.DataSource = loans.OrderByDescending(x => x.CreatedDate).Take(15).Select(x => new
             {
-                // Show loading state (optional)
-                this.Cursor = Cursors.WaitCursor;
+                ID = x.Id,
+                Amount = x.PrincipalAmount.ToString("N0"),
+                Term = x.TermMonths + "T",
+                Status = x.Status.ToString()
+            }).ToList();
+        }
 
-                // 1. Fetch Data
-                var loans = await _unitOfWork.Loans.GetAllAsync();
-                var customers = await _unitOfWork.Customers.GetAllAsync();
+        private void AddStatCard(string title, string value, Color color)
+        {
+            var card = new RoundedPanel { Size = new Size(220, 110), BackColor = Color.White, Margin = new Padding(0, 0, 15, 0) };
 
-                // 2. Tính toán thống kê
-                decimal totalDisbursed = loans.Where(l => l.Status == DAL.Entities.LoanStatus.Approved).Sum(l => l.PrincipalAmount);
-                int pendingCount = loans.Count(l => l.Status == DAL.Entities.LoanStatus.Pending);
-                int customerCount = customers.Count();
-                int overdueCount = loans.Count(l => l.Status == DAL.Entities.LoanStatus.Overdue);
+            Panel pnlColor = new Panel { Size = new Size(5, 60), BackColor = color, Location = new Point(0, 25) };
+            Label lblTitle = new Label { Text = title, Font = new Font("Segoe UI", 9, FontStyle.Bold), ForeColor = Color.Gray, Location = new Point(15, 20), AutoSize = true };
+            Label lblValue = new Label { Text = value, Font = new Font("Segoe UI", 18, FontStyle.Bold), ForeColor = ThemeHelper.TextDark, Location = new Point(15, 45), AutoSize = true };
 
-                // 3. Update StatCards
-                // Lưu ý: StatCard phải có phương thức UpdateData (hoặc tạo mới lại)
-                // Ở đây mình clear đi add lại cho đơn giản, hoặc cast sang StatCard để update
-                pnlStatsContainer.Controls.Clear();
-                pnlStatsContainer.Controls.Add(new StatCard("Tổng Dư Nợ", $"{totalDisbursed:N0}", Color.FromArgb(0, 123, 255))); // Blue
-                pnlStatsContainer.Controls.Add(new StatCard("Hồ Sơ Chờ", pendingCount.ToString(), Color.FromArgb(255, 193, 7))); // Yellow
-                pnlStatsContainer.Controls.Add(new StatCard("Khách Hàng", customerCount.ToString(), Color.FromArgb(40, 167, 69))); // Green
-                pnlStatsContainer.Controls.Add(new StatCard("Nợ Quá Hạn", overdueCount.ToString(), Color.FromArgb(220, 53, 69))); // Red
+            card.Controls.Add(pnlColor);
+            card.Controls.Add(lblTitle);
+            card.Controls.Add(lblValue);
+            pnlTopStats.Controls.Add(card);
+        }
+    }
 
-                // 4. Update Grid
-                dgvLoans.Rows.Clear();
-                // Join data in memory (đơn giản hóa)
-                var query = from l in loans
-                            join c in customers on l.CustomerId equals c.Id
-                            orderby l.CreatedDate descending
-                            select new { l, c };
+    // --- MODERN CHART CONTROL (GDI+ NÂNG CAO) ---
+    public class ModernLiveChart : Control
+    {
+        private List<int> dataPoints = new List<int>();
+        private int maxPoints = 30;
 
-                foreach (var item in query.Take(20)) // Lấy 20 bản ghi mới nhất
+        public ModernLiveChart()
+        {
+            DoubleBuffered = true;
+            BackColor = Color.White;
+            // Init data giả
+            var r = new Random();
+            for (int i = 0; i < maxPoints; i++) dataPoints.Add(r.Next(50, 150));
+        }
+
+        public void PushValue(int val)
+        {
+            dataPoints.Add(val);
+            if (dataPoints.Count > maxPoints) dataPoints.RemoveAt(0);
+            Invalidate();
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+            e.Graphics.Clear(BackColor);
+
+            if (dataPoints.Count < 2) return;
+
+            float w = Width;
+            float h = Height;
+            float stepX = w / (maxPoints - 1);
+            float maxVal = dataPoints.Max() * 1.1f; // Buffer 10% đỉnh
+            if (maxVal == 0) maxVal = 100;
+
+            // 1. Vẽ Grid ngang
+            using (Pen penGrid = new Pen(Color.FromArgb(240, 240, 240), 1))
+            {
+                for (int i = 0; i <= 5; i++)
                 {
-                    dgvLoans.Rows.Add(
-                        item.l.Id,
-                        item.c.FullName,
-                        item.l.PrincipalAmount,
-                        $"{item.l.InterestRate}%",
-                        $"{item.l.TermMonths} tháng",
-                        item.l.Status.ToString()
-                    );
+                    float y = h - (i * (h / 5));
+                    e.Graphics.DrawLine(penGrid, 0, y, w, y);
                 }
             }
-            catch (Exception ex)
+
+            // 2. Tính toán điểm
+            PointF[] points = new PointF[dataPoints.Count];
+            for (int i = 0; i < dataPoints.Count; i++)
             {
-                MessageBox.Show($"Lỗi tải dữ liệu: {ex.Message}", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                points[i] = new PointF(i * stepX, h - (dataPoints[i] / maxVal * h));
             }
-            finally
+
+            // 3. Vẽ vùng Gradient dưới đường line (Area Chart)
+            using (GraphicsPath path = new GraphicsPath())
             {
-                this.Cursor = Cursors.Default;
+                path.AddLines(points);
+                path.AddLine(points.Last().X, h, points[0].X, h); // Đóng path xuống đáy
+                path.CloseFigure();
+
+                using (LinearGradientBrush brush = new LinearGradientBrush(ClientRectangle,
+                    Color.FromArgb(100, 0, 120, 215), Color.FromArgb(10, 0, 120, 215), 90F))
+                {
+                    e.Graphics.FillPath(brush, path);
+                }
+            }
+
+            // 4. Vẽ đường Line chính (Bezier Curve cho mượt)
+            using (Pen penLine = new Pen(Color.FromArgb(0, 120, 215), 2.5f))
+            {
+                // Mẹo: Vẽ Curve thay vì Line gãy khúc
+                if (points.Length > 2) e.Graphics.DrawCurve(penLine, points);
+                else e.Graphics.DrawLines(penLine, points);
             }
         }
     }
