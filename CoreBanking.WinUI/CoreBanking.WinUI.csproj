@@ -2,10 +2,11 @@
 
 	<PropertyGroup>
 		<OutputType>WinExe</OutputType>
-		<!-- QUAN TRỌNG: Phải là net9.0-windows để khớp với DAL và BLL -->
 		<TargetFramework>net9.0-windows</TargetFramework>
 		<Nullable>enable</Nullable>
 		<UseWindowsForms>true</UseWindowsForms>
+		<!-- Bắt buộc bật WPF để dùng thư viện đồ họa LiveCharts đẹp mượt -->
+		<UseWPF>true</UseWPF>
 		<ImplicitUsings>enable</ImplicitUsings>
 	</PropertyGroup>
 
@@ -15,11 +16,17 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<!-- Sử dụng phiên bản thư viện tương thích với .NET 9 -->
-		<PackageReference Include="LiveCharts.WinForms" Version="0.9.7.1" />
-		<PackageReference Include="LiveCharts.Wpf" Version="0.9.7" />
+		<!-- Thư viện Dependency Injection -->
 		<PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.0" />
 		<PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.0" />
+
+		<!-- Thư viện LiveCharts (Chuẩn HMS) -->
+		<PackageReference Include="LiveCharts.WinForms" Version="0.9.7.1" />
+		<PackageReference Include="LiveCharts.Wpf" Version="0.9.7" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <Folder Include="Forms\" />
 	</ItemGroup>
 
 </Project>
