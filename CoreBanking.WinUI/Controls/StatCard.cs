@@ -12,7 +12,7 @@ namespace CoreBanking.WinUI.Controls
         private Label lblValue;
         private PictureBox iconBox;
 
-        public StatCard(string title, string value)
+        public StatCard(string title, string value, Color color)
         {
             this.Size = new Size(260, 120);
             this.BackColor = Color.White;
