@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
@@ -12,183 +11,179 @@ namespace CoreBanking.WinUI.Forms
 {
     public class LoanDetailForm : Form
     {
-        private ComboBox _cboCustomer;
-        private TextBox _txtAmount;
-        private NumericUpDown _numRate;
-        private NumericUpDown _numTerm;
-        private DataGridView _dgvSchedule;
-        private Label _lblTotalInterest;
-        private Label _lblMonthlyPay;
-        private Button _btnSave;
+        // Property để nhận ID từ LoanControl truyền sang
+        public int? LoanId { get; set; }
 
-        // Data
-        private List<Customer> _customers;
+        private ComboBox _cbCustomer;
+        private NumericUpDown _numAmount;
+        private NumericUpDown _numInterest;
+        private NumericUpDown _numDuration;
+        private ComboBox _cbStatus;
+        private Button _btnSave;
+        private Button _btnCancel;
 
         public LoanDetailForm()
         {
-            this.Text = "New Loan Application";
-            this.Size = new Size(900, 600);
+            this.Text = "Loan Details";
+            this.Size = new Size(500, 600);
             this.StartPosition = FormStartPosition.CenterScreen;
             this.BackColor = Color.White;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
 
             InitializeUI();
-            LoadCustomers();
+            this.Load += LoanDetailForm_Load;
         }
 
         private void InitializeUI()
         {
-            // --- LEFT PANEL: INPUT ---
-            Panel pnlLeft = new Panel { Dock = DockStyle.Left, Width = 350, Padding = new Padding(30), BackColor = Color.WhiteSmoke };
+            var layout = new TableLayoutPanel();
+            layout.Dock = DockStyle.Fill;
+            layout.Padding = new Padding(30);
+            layout.ColumnCount = 1;
+            layout.RowCount = 7;
 
-            Label lblTitle = new Label { Text = "Loan Info", Font = new Font("Segoe UI", 16, FontStyle.Bold), ForeColor = ThemeColor.Primary, Location = new Point(25, 20), AutoSize = true };
+            // Định nghĩa chiều cao các hàng
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 50)); // Title
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 70)); // Customer
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 70)); // Amount
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 70)); // Interest
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 70)); // Duration
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 70)); // Status
+            layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100)); // Buttons
 
-            // Customer
-            Label lblCus = new Label { Text = "Customer", Location = new Point(30, 80), AutoSize = true };
-            _cboCustomer = new ComboBox { Location = new Point(30, 105), Width = 280, DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Segoe UI", 10) };
+            // Title
+            Label lblTitle = new Label { Text = "Loan Information", Font = new Font("Segoe UI", 16, FontStyle.Bold), ForeColor = ThemeHelper.PrimaryColor, AutoSize = true };
+            layout.Controls.Add(lblTitle);
 
-            // Amount
-            Label lblAmt = new Label { Text = "Principal Amount ($)", Location = new Point(30, 150), AutoSize = true };
-            _txtAmount = new TextBox { Location = new Point(30, 175), Width = 280, Font = new Font("Segoe UI", 10), Text = "10000" };
-            _txtAmount.KeyPress += (s, e) => { if (!char.IsControl(e.KeyChar) && !char.IsDigit(e.KeyChar)) e.Handled = true; };
+            // 1. Customer Selection
+            _cbCustomer = new ComboBox { Dock = DockStyle.Bottom, Height = 35, Font = new Font("Segoe UI", 11), DropDownStyle = ComboBoxStyle.DropDownList };
+            layout.Controls.Add(CreateField("Customer (*)", _cbCustomer));
 
-            // Interest
-            Label lblRate = new Label { Text = "Interest Rate (% / Year)", Location = new Point(30, 220), AutoSize = true };
-            _numRate = new NumericUpDown { Location = new Point(30, 245), Width = 280, Font = new Font("Segoe UI", 10), DecimalPlaces = 2, Value = 12 };
+            // 2. Amount
+            _numAmount = new NumericUpDown { Dock = DockStyle.Bottom, Height = 35, Font = new Font("Segoe UI", 11), Maximum = 10000000000, Increment = 1000000, ThousandsSeparator = true };
+            layout.Controls.Add(CreateField("Loan Amount ($) (*)", _numAmount));
 
-            // Term
-            Label lblTerm = new Label { Text = "Term (Months)", Location = new Point(30, 290), AutoSize = true };
-            _numTerm = new NumericUpDown { Location = new Point(30, 315), Width = 280, Font = new Font("Segoe UI", 10), Maximum = 360, Value = 12 };
+            // 3. Interest Rate
+            _numInterest = new NumericUpDown { Dock = DockStyle.Bottom, Height = 35, Font = new Font("Segoe UI", 11), Maximum = 100, DecimalPlaces = 2 };
+            layout.Controls.Add(CreateField("Interest Rate (%)", _numInterest));
 
-            // Calc Button
-            Button btnCalc = new Button { Text = "Calculate Schedule", Location = new Point(30, 370), Width = 280, Height = 40, BackColor = ThemeColor.Secondary, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = new Font("Segoe UI", 10, FontStyle.Bold), Cursor = Cursors.Hand };
-            btnCalc.FlatAppearance.BorderSize = 0;
-            btnCalc.Click += CalculateSchedule;
+            // 4. Duration
+            _numDuration = new NumericUpDown { Dock = DockStyle.Bottom, Height = 35, Font = new Font("Segoe UI", 11), Maximum = 360, Minimum = 1, Value = 12 };
+            layout.Controls.Add(CreateField("Duration (Months)", _numDuration));
 
-            // Save Button
-            _btnSave = new Button { Text = "SUBMIT APPLICATION", Location = new Point(30, 480), Width = 280, Height = 50, BackColor = ThemeColor.Success, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = new Font("Segoe UI", 12, FontStyle.Bold), Cursor = Cursors.Hand, Enabled = false };
-            _btnSave.FlatAppearance.BorderSize = 0;
-            _btnSave.Click += SaveLoan;
+            // 5. Status
+            _cbStatus = new ComboBox { Dock = DockStyle.Bottom, Height = 35, Font = new Font("Segoe UI", 11), DropDownStyle = ComboBoxStyle.DropDownList };
+            _cbStatus.DataSource = Enum.GetValues(typeof(LoanStatus));
+            layout.Controls.Add(CreateField("Status", _cbStatus));
 
-            pnlLeft.Controls.AddRange(new Control[] { lblTitle, lblCus, _cboCustomer, lblAmt, _txtAmount, lblRate, _numRate, lblTerm, _numTerm, btnCalc, _btnSave });
+            // Buttons
+            FlowLayoutPanel pnlBtn = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.RightToLeft, Padding = new Padding(0, 20, 0, 0) };
+            _btnSave = new Button { Text = "SAVE LOAN", Width = 140, Height = 45 };
+            ThemeHelper.ApplyPrimaryButtonStyle(_btnSave);
+            _btnSave.Click += BtnSave_Click;
 
-            // --- RIGHT PANEL: SCHEDULE PREVIEW ---
-            Panel pnlRight = new Panel { Dock = DockStyle.Fill, Padding = new Padding(20) };
+            _btnCancel = new Button { Text = "Cancel", Width = 100, Height = 45, Margin = new Padding(10, 0, 0, 0) };
+            ThemeHelper.ApplySecondaryButtonStyle(_btnCancel);
+            _btnCancel.Click += (s, e) => this.Close();
 
-            Label lblPreview = new Label { Text = "Repayment Schedule Preview", Font = new Font("Segoe UI", 12, FontStyle.Bold), ForeColor = Color.Gray, Dock = DockStyle.Top, Height = 40 };
+            pnlBtn.Controls.Add(_btnSave);
+            pnlBtn.Controls.Add(_btnCancel);
+            layout.Controls.Add(pnlBtn);
 
-            // Summary Stats
-            Panel pnlStats = new Panel { Dock = DockStyle.Bottom, Height = 60, BackColor = Color.FromArgb(240, 248, 255) };
-            _lblMonthlyPay = new Label { Text = "Monthly: $0", Location = new Point(20, 20), AutoSize = true, Font = new Font("Segoe UI", 11, FontStyle.Bold), ForeColor = ThemeColor.Primary };
-            _lblTotalInterest = new Label { Text = "Total Interest: $0", Location = new Point(250, 20), AutoSize = true, Font = new Font("Segoe UI", 11, FontStyle.Bold), ForeColor = ThemeColor.Danger };
-            pnlStats.Controls.Add(_lblMonthlyPay);
-            pnlStats.Controls.Add(_lblTotalInterest);
-
-            // Grid
-            _dgvSchedule = new DataGridView { Dock = DockStyle.Fill, BackgroundColor = Color.White, BorderStyle = BorderStyle.None, RowHeadersVisible = false, AllowUserToAddRows = false, ReadOnly = true, AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill };
-            _dgvSchedule.Columns.Add("Month", "Month");
-            _dgvSchedule.Columns.Add("Principal", "Principal");
-            _dgvSchedule.Columns.Add("Interest", "Interest");
-            _dgvSchedule.Columns.Add("Total", "Total Pay");
-            _dgvSchedule.Columns.Add("Balance", "Remaining");
-
-            pnlRight.Controls.Add(_dgvSchedule);
-            pnlRight.Controls.Add(pnlStats);
-            pnlRight.Controls.Add(lblPreview);
-
-            this.Controls.Add(pnlRight);
-            this.Controls.Add(pnlLeft);
+            this.Controls.Add(layout);
         }
 
-        private async void LoadCustomers()
+        private Panel CreateField(string label, Control input)
         {
-            using (var scope = Program.ServiceProvider.CreateScope())
-            {
-                var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                var list = await uow.Customers.GetAllAsync();
-                _customers = list.ToList();
-
-                _cboCustomer.Items.Clear();
-                foreach (var c in _customers)
-                    _cboCustomer.Items.Add($"{c.FullName} ({c.IdentityNumber})");
-
-                if (_cboCustomer.Items.Count > 0) _cboCustomer.SelectedIndex = 0;
-            }
+            Panel p = new Panel { Dock = DockStyle.Fill, Margin = new Padding(0, 0, 0, 15) };
+            Label l = new Label { Text = label, Dock = DockStyle.Top, Height = 25, ForeColor = Color.Gray, Font = new Font("Segoe UI", 9) };
+            p.Controls.Add(input);
+            p.Controls.Add(l);
+            return p;
         }
 
-        // --- THUẬT TOÁN TÍNH LỊCH TRẢ NỢ (PMT Formula) ---
-        private void CalculateSchedule(object sender, EventArgs e)
+        private async void LoanDetailForm_Load(object sender, EventArgs e)
         {
-            if (!decimal.TryParse(_txtAmount.Text, out decimal principal)) return;
-            double rateYear = (double)_numRate.Value;
-            int months = (int)_numTerm.Value;
-
-            double rateMonth = rateYear / 12 / 100;
-
-            // Công thức PMT: P * r * (1+r)^n / ((1+r)^n - 1)
-            double pmt = (double)principal * rateMonth * Math.Pow(1 + rateMonth, months) / (Math.Pow(1 + rateMonth, months) - 1);
-
-            decimal monthlyPay = (decimal)pmt;
-            decimal balance = principal;
-            decimal totalInterest = 0;
-
-            _dgvSchedule.Rows.Clear();
-
-            for (int i = 1; i <= months; i++)
-            {
-                decimal interest = balance * (decimal)rateMonth;
-                decimal principalPay = monthlyPay - interest;
-                balance -= principalPay;
-                if (balance < 0) balance = 0; // Làm tròn số cuối
-
-                totalInterest += interest;
-
-                _dgvSchedule.Rows.Add(i, principalPay.ToString("N2"), interest.ToString("N2"), monthlyPay.ToString("N2"), balance.ToString("N2"));
-            }
-
-            _lblMonthlyPay.Text = $"Monthly: {monthlyPay:C2}";
-            _lblTotalInterest.Text = $"Total Interest: {totalInterest:C2}";
-
-            _btnSave.Enabled = true; // Cho phép lưu sau khi tính toán
-        }
-
-        private async void SaveLoan(object sender, EventArgs e)
-        {
-            if (_cboCustomer.SelectedIndex < 0) return;
-            var customer = _customers[_cboCustomer.SelectedIndex];
-
             try
             {
                 using (var scope = Program.ServiceProvider.CreateScope())
                 {
                     var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
-                    var loan = new Loan
+                    // Load Customers for ComboBox
+                    var customers = await uow.Customers.GetAllAsync();
+                    _cbCustomer.DataSource = customers.ToList();
+                    _cbCustomer.DisplayMember = "FullName";
+                    _cbCustomer.ValueMember = "Id";
+
+                    // Load Loan Data if Edit Mode
+                    if (LoanId.HasValue)
                     {
-                        CustomerId = customer.Id,
-                        PrincipalAmount = decimal.Parse(_txtAmount.Text),
-                        InterestRate = (double)_numRate.Value,
-                        TermMonths = (int)_numTerm.Value,
-                        Status = LoanStatus.Pending,
-                        CreatedDate = DateTime.Now
-                    };
+                        var loan = await uow.Loans.GetByIdAsync(LoanId.Value);
+                        if (loan != null)
+                        {
+                            _cbCustomer.SelectedValue = loan.CustomerId;
+                            _numAmount.Value = loan.Amount;
+                            _numInterest.Value = loan.InterestRate;
+                            _numDuration.Value = loan.DurationMonth;
+                            _cbStatus.SelectedItem = loan.Status;
 
-                    await uow.Loans.AddAsync(loan);
-                    await uow.CompleteAsync(); // Save để lấy LoanId
+                            _btnSave.Text = "UPDATE LOAN";
+                            this.Text = $"Edit Loan #{loan.Id}";
+                        }
+                    }
+                }
+            }
+            catch (Exception ex) { MessageBox.Show("Error loading data: " + ex.Message); }
+        }
 
-                    // Lưu lịch trả nợ vào bảng RepaymentSchedule (Tùy chọn, để đơn giản ta chỉ lưu Loan Header trước)
-                    // foreach (DataGridViewRow row in _dgvSchedule.Rows) { ... }
+        private async void BtnSave_Click(object sender, EventArgs e)
+        {
+            if (_cbCustomer.SelectedValue == null)
+            {
+                MessageBox.Show("Please select a customer.");
+                return;
+            }
 
-                    MessageBox.Show("Application submitted successfully!", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            try
+            {
+                using (var scope = Program.ServiceProvider.CreateScope())
+                {
+                    var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                    Loan loan;
+
+                    if (LoanId.HasValue)
+                    {
+                        loan = await uow.Loans.GetByIdAsync(LoanId.Value);
+                        if (loan == null) return;
+                    }
+                    else
+                    {
+                        loan = new Loan { StartDate = DateTime.Now };
+                        await uow.Loans.AddAsync(loan);
+                    }
+
+                    // Update properties
+                    loan.CustomerId = (int)_cbCustomer.SelectedValue;
+                    loan.Amount = _numAmount.Value;
+                    loan.InterestRate = _numInterest.Value;
+                    loan.DurationMonth = (int)_numDuration.Value;
+                    loan.Status = (LoanStatus)_cbStatus.SelectedItem;
+
+                    // Simple logic: EndDate = StartDate + Duration
+                    loan.EndDate = loan.StartDate.AddMonths(loan.DurationMonth);
+
+                    if (LoanId.HasValue) uow.Loans.Update(loan);
+
+                    await uow.CompleteAsync();
+
+                    MessageBox.Show("Loan saved successfully!", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     this.DialogResult = DialogResult.OK;
                     this.Close();
                 }
             }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Error saving loan: " + ex.Message);
-            }
+            catch (Exception ex) { MessageBox.Show("Error saving: " + ex.Message); }
         }
     }
 }

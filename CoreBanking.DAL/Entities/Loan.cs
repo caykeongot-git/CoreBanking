@@ -1,44 +1,37 @@
-﻿using System.ComponentModel.DataAnnotations.Schema;
+﻿using System;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace CoreBanking.DAL.Entities
 {
     public enum LoanStatus
     {
-        Pending,
-        Approved,
-        Rejected,
-        Active,   // Trạng thái đang vay
-        PaidOff,  // Trạng thái đã trả hết
-        BadDebt   // Trạng thái nợ xấu
+        Pending = 0,    // Chờ duyệt
+        Active = 1,     // Đang vay
+        Paid = 2,       // Đã trả hết (FIX: Thêm trạng thái này)
+        BadDebt = 3,    // Nợ xấu
+        Rejected = 4    // Từ chối
     }
 
     public class Loan : BaseEntity
     {
         public int CustomerId { get; set; }
-        public virtual Customer? Customer { get; set; }
 
-        [Column(TypeName = "decimal(18, 2)")]
-        public decimal PrincipalAmount { get; set; }
+        [ForeignKey("CustomerId")]
+        public virtual Customer Customer { get; set; }
 
-        public double InterestRate { get; set; }
-        public int TermMonths { get; set; }
+        // FIX: Thêm Amount để khớp với code Control
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal Amount { get; set; }
+
+        [Column(TypeName = "decimal(5,2)")]
+        public decimal InterestRate { get; set; } // Lãi suất %
+
+        public int DurationMonth { get; set; } // Thời hạn vay (tháng)
+
+        public DateTime StartDate { get; set; }
+        public DateTime? EndDate { get; set; }
 
         public LoanStatus Status { get; set; } = LoanStatus.Pending;
-
-        public virtual ICollection<RepaymentSchedule> Schedules { get; set; } = new List<RepaymentSchedule>();
-    }
-
-    // Đảm bảo class này tồn tại vì Loan có tham chiếu đến nó
-    public class RepaymentSchedule : BaseEntity
-    {
-        public int LoanId { get; set; }
-        public virtual Loan? Loan { get; set; }
-        public int Month { get; set; }
-        [Column(TypeName = "decimal(18, 2)")]
-        public decimal Principal { get; set; }
-        [Column(TypeName = "decimal(18, 2)")]
-        public decimal Interest { get; set; }
-        [Column(TypeName = "decimal(18, 2)")]
-        public decimal Total { get; set; }
     }
 }

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
@@ -19,9 +20,11 @@ namespace CoreBanking.WinUI.Controls
         public CustomerControl()
         {
             this.Dock = DockStyle.Fill;
-            this.BackColor = ThemeColor.Background;
+            this.BackColor = Color.WhiteSmoke; // Màu nền sáng nhẹ
             InitializeUI();
-            LoadData();
+
+            // Đăng ký sự kiện Load để lấy dữ liệu khi control hiển thị
+            this.Load += (s, e) => LoadData();
         }
 
         private void InitializeUI()
@@ -29,21 +32,35 @@ namespace CoreBanking.WinUI.Controls
             // --- TOP BAR ---
             _pnlTop = new Panel { Dock = DockStyle.Top, Height = 80, Padding = new Padding(20) };
 
-            // Search
-            var lblSearch = new Label { Text = "Search (Name / ID):", Location = new Point(20, 20), AutoSize = true, ForeColor = Color.Gray };
-            _txtSearch = new TextBox { Location = new Point(20, 45), Width = 300, Font = new Font("Segoe UI", 11), BorderStyle = BorderStyle.FixedSingle };
-            _txtSearch.TextChanged += (s, e) => LoadData();
+            // Search Label & Box
+            var lblSearch = new Label
+            {
+                Text = "Search (Name / Identity):",
+                Location = new Point(20, 15),
+                AutoSize = true,
+                ForeColor = Color.Gray,
+                Font = new Font("Segoe UI", 9)
+            };
+
+            _txtSearch = new TextBox
+            {
+                Location = new Point(20, 40),
+                Width = 350,
+                Font = new Font("Segoe UI", 11),
+                BorderStyle = BorderStyle.FixedSingle
+            };
+            _txtSearch.TextChanged += (s, e) => LoadData(); // Real-time search
 
             // Add Button
             _btnAdd = new Button
             {
-                Text = "+ Add Customer",
-                BackColor = ThemeColor.Primary,
+                Text = "+ NEW CUSTOMER",
+                BackColor = ThemeHelper.PrimaryColor, // Đồng bộ màu chủ đạo
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
                 Font = new Font("Segoe UI", 10, FontStyle.Bold),
-                Size = new Size(150, 35),
-                Location = new Point(this.Width - 190, 40),
+                Size = new Size(180, 40),
+                Location = new Point(this.Width - 220, 35),
                 Anchor = AnchorStyles.Top | AnchorStyles.Right,
                 Cursor = Cursors.Hand
             };
@@ -66,29 +83,53 @@ namespace CoreBanking.WinUI.Controls
                 GridColor = Color.WhiteSmoke,
                 RowHeadersVisible = false,
                 AllowUserToAddRows = false,
+                AllowUserToResizeRows = false,
                 AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
-                RowTemplate = { Height = 45 },
+                RowTemplate = { Height = 50 }, // Tăng chiều cao dòng cho thoáng
                 SelectionMode = DataGridViewSelectionMode.FullRowSelect,
-                ReadOnly = true
+                ReadOnly = true,
+                MultiSelect = false
             };
 
-            // Style
-            _dgv.ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle { BackColor = Color.FromArgb(245, 247, 251), ForeColor = Color.Gray, Font = new Font("Segoe UI", 9, FontStyle.Bold), Padding = new Padding(10) };
-            _dgv.DefaultCellStyle = new DataGridViewCellStyle { SelectionBackColor = ThemeColor.Primary, SelectionForeColor = Color.White, Font = new Font("Segoe UI", 10), Padding = new Padding(10, 0, 0, 0), ForeColor = Color.FromArgb(64, 64, 64) };
+            // Style cho Grid
+            _dgv.ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle
+            {
+                BackColor = Color.FromArgb(240, 242, 245),
+                ForeColor = Color.DimGray,
+                Font = new Font("Segoe UI", 9, FontStyle.Bold),
+                Padding = new Padding(10),
+                SelectionBackColor = Color.FromArgb(240, 242, 245), // Không đổi màu header khi select
+                SelectionForeColor = Color.DimGray
+            };
 
-            // Columns
-            _dgv.Columns.Add("Id", "#");
+            _dgv.DefaultCellStyle = new DataGridViewCellStyle
+            {
+                SelectionBackColor = ThemeHelper.PrimaryColor, // Màu select dòng
+                SelectionForeColor = Color.White,
+                Font = new Font("Segoe UI", 10),
+                Padding = new Padding(10, 0, 0, 0),
+                ForeColor = Color.FromArgb(50, 50, 50)
+            };
+
+            // Định nghĩa cột
+            _dgv.Columns.Add("Id", "# ID");
             _dgv.Columns.Add("Name", "FULL NAME");
             _dgv.Columns.Add("Identity", "IDENTITY NO.");
-            _dgv.Columns.Add("Phone", "PHONE");
-            _dgv.Columns.Add("Income", "INCOME");
-            _dgv.Columns.Add("Balance", "TOTAL BALANCE"); // Tính tổng tiền
+            _dgv.Columns.Add("Phone", "PHONE NUMBER");
+            _dgv.Columns.Add("Income", "MONTHLY INCOME");
+            _dgv.Columns.Add("Balance", "TOTAL BALANCE");
 
-            // Context Menu (Sửa/Xóa)
+            // Format cột tiền tệ & căn lề
+            _dgv.Columns["Income"].DefaultCellStyle.Format = "C0";
+            _dgv.Columns["Balance"].DefaultCellStyle.Format = "C0";
+            _dgv.Columns["Balance"].DefaultCellStyle.Font = new Font("Segoe UI", 10, FontStyle.Bold);
+
+            // Context Menu (Chuột phải)
             var menu = new ContextMenuStrip();
-            menu.Items.Add("Edit Customer", null, (s, e) => EditSelected());
-            menu.Items.Add("Refresh List", null, (s, e) => LoadData());
+            menu.Items.Add("Edit Details", null, (s, e) => EditSelected());
+            menu.Items.Add("Refresh Data", null, (s, e) => LoadData());
             _dgv.ContextMenuStrip = menu;
+
             _dgv.DoubleClick += (s, e) => EditSelected();
 
             pnlBody.Controls.Add(_dgv);
@@ -100,40 +141,59 @@ namespace CoreBanking.WinUI.Controls
         {
             try
             {
+                // Hiển thị trạng thái loading nếu cần (ví dụ đổi con trỏ)
+                this.Cursor = Cursors.WaitCursor;
+
                 using (var scope = Program.ServiceProvider.CreateScope())
                 {
                     var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+
+                    // 1. Lấy tất cả khách hàng
                     var list = await uow.Customers.GetAllAsync();
 
-                    // Search Filter
-                    string k = _txtSearch.Text.ToLower();
+                    // 2. Lấy tất cả tài khoản (Chỉ lấy Id và Balance để tối ưu nếu cần, nhưng ở đây ta lấy hết cho đơn giản)
+                    // PERFORMANCE FIX: Tránh gọi DB trong vòng lặp
+                    var allAccounts = await uow.Accounts.GetAllAsync();
+
+                    // 3. Filter Search (Client-side filtering)
+                    string k = _txtSearch.Text.ToLower().Trim();
                     if (!string.IsNullOrEmpty(k))
                     {
-                        list = list.Where(c => c.FullName.ToLower().Contains(k) || c.IdentityNumber.Contains(k));
+                        list = list.Where(c =>
+                            c.FullName.ToLower().Contains(k) ||
+                            c.IdentityNumber.Contains(k) ||
+                            (c.PhoneNumber != null && c.PhoneNumber.Contains(k))
+                        );
                     }
 
+                    // 4. Binding dữ liệu lên Grid
                     _dgv.Rows.Clear();
+
                     foreach (var c in list.OrderByDescending(x => x.Id))
                     {
-                        // Tính tổng số dư (Cần load Accounts của customer này nếu chưa include)
-                        // Ở đây ta giả định lazy loading hoặc query riêng nếu cần chính xác
-                        var accounts = await uow.Accounts.FindAsync(a => a.CustomerId == c.Id);
-                        decimal totalBalance = accounts.Sum(a => a.Balance);
+                        // Tính toán trên RAM (Rất nhanh)
+                        decimal totalBalance = allAccounts
+                            .Where(a => a.CustomerId == c.Id)
+                            .Sum(a => a.Balance);
 
                         _dgv.Rows.Add(
                             c.Id,
                             c.FullName,
                             c.IdentityNumber,
-                            c.PhoneNumber,
-                            c.MonthlyIncome.ToString("C0"),
-                            totalBalance.ToString("C0")
+                            c.PhoneNumber ?? "N/A",
+                            c.MonthlyIncome, // Grid sẽ tự format C0
+                            totalBalance     // Grid sẽ tự format C0
                         );
                     }
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error: " + ex.Message);
+                MessageBox.Show("Error loading data: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                this.Cursor = Cursors.Default;
             }
         }
 
@@ -141,21 +201,37 @@ namespace CoreBanking.WinUI.Controls
         {
             if (_dgv.SelectedRows.Count > 0)
             {
-                int id = int.Parse(_dgv.SelectedRows[0].Cells[0].Value.ToString());
-                OpenDetailForm(id);
+                // Lấy ID từ cột đầu tiên
+                if (int.TryParse(_dgv.SelectedRows[0].Cells[0].Value?.ToString(), out int id))
+                {
+                    OpenDetailForm(id);
+                }
             }
         }
 
         private void OpenDetailForm(int? id)
         {
-            using (var scope = Program.ServiceProvider.CreateScope())
+            try
             {
-                var form = scope.ServiceProvider.GetRequiredService<CustomerDetailForm>();
-                form.CustomerId = id; // Truyền ID vào form
-                if (form.ShowDialog() == DialogResult.OK)
+                using (var scope = Program.ServiceProvider.CreateScope())
                 {
-                    LoadData();
+                    // Resolve Form từ DI Container để đảm bảo các dependencies được tiêm vào (nếu có)
+                    var form = scope.ServiceProvider.GetRequiredService<CustomerDetailForm>();
+
+                    form.CustomerId = id; // Truyền ID (Null = Add, Value = Edit)
+
+                    if (form.ShowDialog() == DialogResult.OK)
+                    {
+                        LoadData(); // Reload lại grid nếu có thay đổi
+
+                        // Hiển thị thông báo nhỏ (Toast) nếu muốn
+                        // MessageBox.Show("Data updated successfully!", "Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
                 }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Cannot open form: " + ex.Message);
             }
         }
     }

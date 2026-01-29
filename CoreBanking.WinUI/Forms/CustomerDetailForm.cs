@@ -23,7 +23,8 @@ namespace CoreBanking.WinUI.Forms
         public CustomerDetailForm()
         {
             this.Text = "Customer Details";
-            this.Size = new Size(550, 600); // Tăng kích thước form
+            // FIX: Tăng kích thước form để chứa các control thoải mái hơn
+            this.Size = new Size(600, 720);
             this.StartPosition = FormStartPosition.CenterScreen;
             this.BackColor = Color.White;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
@@ -40,26 +41,30 @@ namespace CoreBanking.WinUI.Forms
             layout.Dock = DockStyle.Fill;
             layout.Padding = new Padding(30);
             layout.ColumnCount = 1;
-            layout.RowCount = 8; // Title + 5 Fields + Buttons
+            layout.RowCount = 8; // Title + 5 Fields + Spacer + Buttons
 
-            // Cấu hình chiều cao các hàng
-            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 50)); // Title
-            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 70)); // Name
-            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 70)); // Identity
-            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 70)); // Phone
-            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 70)); // Email
-            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 70)); // Income
-            layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100)); // Spacer
-            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 60)); // Buttons
+            // FIX: Tăng chiều cao các hàng (RowStyles) để không bị cắt chữ
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 60)); // Title (Tăng từ 50 -> 60)
+
+            // Các Fields: Tăng từ 70 -> 85 để Label và TextBox có khoảng thở
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 85)); // Name
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 85)); // Identity
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 85)); // Phone
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 85)); // Email
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 85)); // Income
+
+            layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100)); // Spacer (chiếm phần còn lại)
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 70)); // Buttons (Tăng nhẹ từ 60 -> 70)
 
             // Title
             Label lblTitle = new Label
             {
                 Text = "Customer Information",
-                Font = new Font("Segoe UI", 16, FontStyle.Bold),
-                ForeColor = ThemeColor.Primary,
+                Font = new Font("Segoe UI", 18, FontStyle.Bold), // Tăng font một chút cho đẹp
+                ForeColor = ThemeHelper.PrimaryColor, // Sử dụng ThemeHelper chuẩn
                 AutoSize = true,
-                Anchor = AnchorStyles.Left
+                Anchor = AnchorStyles.Left | AnchorStyles.Bottom, // Neo xuống đáy cell để sát với field đầu tiên
+                Margin = new Padding(0, 0, 0, 15) // Cách lề dưới
             };
             layout.Controls.Add(lblTitle, 0, 0);
 
@@ -80,8 +85,8 @@ namespace CoreBanking.WinUI.Forms
             {
                 Text = "SAVE",
                 Width = 150,
-                Height = 45,
-                BackColor = ThemeColor.Primary,
+                Height = 50, // Tăng height button
+                BackColor = ThemeHelper.PrimaryColor,
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
                 Font = new Font("Segoe UI", 10, FontStyle.Bold),
@@ -95,7 +100,7 @@ namespace CoreBanking.WinUI.Forms
             {
                 Text = "Cancel",
                 Width = 120,
-                Height = 45,
+                Height = 50,
                 BackColor = Color.WhiteSmoke,
                 ForeColor = Color.Gray,
                 FlatStyle = FlatStyle.Flat,
@@ -115,22 +120,28 @@ namespace CoreBanking.WinUI.Forms
 
         private TextBox AddFieldToLayout(TableLayoutPanel layout, string labelText, int row)
         {
-            Panel container = new Panel { Dock = DockStyle.Fill, Margin = new Padding(0, 0, 0, 10) };
+            // Container panel cho mỗi field
+            Panel container = new Panel
+            {
+                Dock = DockStyle.Fill,
+                Margin = new Padding(0, 5, 0, 5) // Margin giữa các container
+            };
 
             Label lbl = new Label
             {
                 Text = labelText,
                 Dock = DockStyle.Top,
-                Height = 25,
+                Height = 30, // Tăng height label từ 25 -> 30
                 TextAlign = ContentAlignment.BottomLeft,
                 ForeColor = Color.DimGray,
-                Font = new Font("Segoe UI", 9)
+                Font = new Font("Segoe UI", 9.5f, FontStyle.Regular), // Font to hơn xíu
+                Padding = new Padding(0, 0, 0, 5) // Đệm dưới label
             };
 
             TextBox txt = new TextBox
             {
-                Dock = DockStyle.Bottom,
-                Height = 35, // Chiều cao TextBox
+                Dock = DockStyle.Bottom, // Dock bottom để tách biệt với label
+                Height = 40,
                 Font = new Font("Segoe UI", 11),
                 BorderStyle = BorderStyle.FixedSingle
             };
@@ -202,7 +213,6 @@ namespace CoreBanking.WinUI.Forms
                     }
                     else // Insert
                     {
-                        // Check duplicate Identity logic here...
                         var newC = new Customer
                         {
                             FullName = _txtName.Text.Trim(),
