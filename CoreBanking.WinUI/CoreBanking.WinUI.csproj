@@ -2,31 +2,29 @@
 
 	<PropertyGroup>
 		<OutputType>WinExe</OutputType>
+		<!-- FIX 1: Đồng bộ version với BLL/DAL (lên .NET 9.0) -->
 		<TargetFramework>net9.0-windows</TargetFramework>
 		<Nullable>enable</Nullable>
 		<UseWindowsForms>true</UseWindowsForms>
-		<!-- Bắt buộc bật WPF để dùng thư viện đồ họa LiveCharts đẹp mượt -->
+		<!-- QUAN TRỌNG: Bật WPF để dùng LiveCharts đẹp như HMS -->
 		<UseWPF>true</UseWPF>
 		<ImplicitUsings>enable</ImplicitUsings>
 	</PropertyGroup>
 
 	<ItemGroup>
+		<!-- FIX 2: Thêm NoWarn để tắt cảnh báo tương thích version cũ của LiveCharts -->
+		<PackageReference Include="LiveCharts.WinForms" Version="0.9.7" NoWarn="NU1701" />
+		<PackageReference Include="LiveCharts.Wpf" Version="0.9.7" NoWarn="NU1701" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.1">
+			<PrivateAssets>all</PrivateAssets>
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
+		<PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.1" />
+	</ItemGroup>
+
+	<ItemGroup>
 		<ProjectReference Include="..\CoreBanking.BLL\CoreBanking.BLL.csproj" />
 		<ProjectReference Include="..\CoreBanking.DAL\CoreBanking.DAL.csproj" />
-	</ItemGroup>
-
-	<ItemGroup>
-		<!-- Thư viện Dependency Injection -->
-		<PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.0" />
-		<PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.0" />
-
-		<!-- Thư viện LiveCharts (Chuẩn HMS) -->
-		<PackageReference Include="LiveCharts.WinForms" Version="0.9.7.1" />
-		<PackageReference Include="LiveCharts.Wpf" Version="0.9.7" />
-	</ItemGroup>
-
-	<ItemGroup>
-	  <Folder Include="Forms\" />
 	</ItemGroup>
 
 </Project>

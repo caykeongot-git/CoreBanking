@@ -12,18 +12,23 @@ namespace CoreBanking.DAL.Repositories
             _context = context;
             Customers = new Repository<Customer>(_context);
             Accounts = new Repository<Account>(_context);
-            Transactions = new Repository<Transaction>(_context);
             Loans = new Repository<Loan>(_context);
+            Transactions = new Repository<Transaction>(_context);
             CreditScores = new Repository<CreditScore>(_context);
+
+            // --- Khởi tạo Repository User ---
             Users = new Repository<User>(_context);
         }
 
         public IRepository<Customer> Customers { get; private set; }
         public IRepository<Account> Accounts { get; private set; }
-        public IRepository<Transaction> Transactions { get; private set; }
         public IRepository<Loan> Loans { get; private set; }
+        public IRepository<Transaction> Transactions { get; private set; }
         public IRepository<CreditScore> CreditScores { get; private set; }
+
+        // --- Property User ---
         public IRepository<User> Users { get; private set; }
+
         public async Task<int> CompleteAsync()
         {
             return await _context.SaveChangesAsync();

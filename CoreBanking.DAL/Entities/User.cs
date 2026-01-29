@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace CoreBanking.DAL.Entities
 {
@@ -6,9 +7,10 @@ namespace CoreBanking.DAL.Entities
     {
         Admin,
         Manager,
-        Teller // Giao dịch viên
+        Teller
     }
 
+    // --- QUAN TRỌNG: Phải có ": BaseEntity" ---
     public class User : BaseEntity
     {
         [Required]
@@ -17,7 +19,7 @@ namespace CoreBanking.DAL.Entities
 
         [Required]
         [MaxLength(255)]
-        public string PasswordHash { get; set; } = string.Empty; // Lưu mật khẩu (nên mã hóa MD5/BCrypt)
+        public string PasswordHash { get; set; } = string.Empty;
 
         [Required]
         [MaxLength(100)]
