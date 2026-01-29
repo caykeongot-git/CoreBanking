@@ -67,7 +67,8 @@ namespace CoreBanking.WinUI
                     services.AddScoped<ILoanService, LoanService>();
                     services.AddScoped<ICreditScoreService, CreditScoreService>();
                     services.AddScoped<ITransactionService, TransactionService>();
-
+                    services.AddTransient<CoreBanking.WinUI.Forms.LoanDetailForm>();
+                    services.AddTransient<CoreBanking.WinUI.Forms.CustomerDetailForm>();
                     // 4. Forms
                     services.AddTransient<LoginForm>();
                     services.AddTransient<MainForm>();
